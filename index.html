@@ -1,9 +1,9 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>testis cam tikna</title>
+  <title>Cube Detection Test</title>
   <style>
-    video {
+    video, canvas {
       width: 400px;
       height: 300px;
       border: 5px solid black;
@@ -11,13 +11,20 @@
   </style>
 </head>
 <body>
-  <h2>🎥 SubuRatsaBhay</h2>
+  <h2>🎥 Cube Detection Test</h2>
   <video id="video" autoplay playsinline></video>
+  <canvas id="canvas"></canvas>
+
+  <!-- TensorFlow.js + COCO-SSD -->
+  <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.18.0"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/coco-ssd"></script>
 
   <script>
     const video = document.getElementById("video");
+    const canvas = document.getElementById("canvas");
+    const ctx = canvas.getContext("2d");
 
-    // Ask permission + open camera
+    // Open camera
     navigator.mediaDevices.getUserMedia({ video: true })
       .then(stream => {
         video.srcObject = stream;
@@ -26,7 +33,42 @@
         console.error("Camera error:", err);
         alert("Could not access camera. Please allow permissions.");
       });
+
+    // Load COCO-SSD Model
+    cocoSsd.load().then(model => {
+      console.log("Model loaded!");
+
+      let lastPreds = [];
+
+      setInterval(async () => {
+        const predictions = await model.detect(video);
+
+        // Always draw the current video frame
+        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+        // If new predictions exist, update memory
+        if (predictions.length > 0) {
+          lastPreds = predictions;
+        }
+
+        // Draw the last known predictions (so it doesn't "flash" and disappear)
+        lastPreds.forEach(pred => {
+          if (pred.score > 0.3) { // keep anything above 30% confidence
+            ctx.beginPath();
+            ctx.rect(...pred.bbox);
+            ctx.lineWidth = 3;
+            ctx.strokeStyle = "red";
+            ctx.fillStyle = "red";
+            ctx.stroke();
+            ctx.fillText(
+              pred.class + " " + Math.round(pred.score * 100) + "%",
+              pred.bbox[0],
+              pred.bbox[1] - 5
+            );
+          }
+        });
+      }, 200); // check every 200ms
+    });
   </script>
 </body>
 </html>
-
